@@ -1,0 +1,131 @@
+:root {
+  --ink: #111;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --bg: #f6f7f9;
+  --accent: #111;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --ready: #2563eb;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.brand { letter-spacing: 3px; font-weight: 800; margin: 0 0 4px; }
+.brand.sm { font-size: 18px; letter-spacing: 2px; }
+.tagline { color: var(--muted); margin: 0 0 20px; }
+
+.center {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+
+.card.qr { max-width: 340px; }
+.card canvas { width: 260px; height: 260px; max-width: 100%; }
+
+label { display: block; text-align: left; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 16px;
+  background: #fff;
+}
+input:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
+
+.bignum { font-size: 32px; text-align: center; letter-spacing: 4px; margin-top: 8px; }
+
+button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  width: 100%;
+}
+button:disabled { opacity: .6; cursor: default; }
+.btn.sm { width: auto; margin: 0; padding: 8px 12px; font-size: 13px; }
+.btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.link { background: none; border: none; color: var(--muted); width: auto; margin: 0; padding: 0; cursor: pointer; }
+
+.muted { color: var(--muted); font-size: 14px; }
+.tiny { font-size: 11px; word-break: break-all; }
+.big { font-size: 18px; font-weight: 600; margin: 12px 0; }
+.huge { font-size: 26px; font-weight: 800; margin: 14px 0; letter-spacing: 1px; }
+.error { color: #dc2626; font-size: 14px; margin: 12px 0 0; }
+.hint { color: var(--warn); font-size: 13px; margin-top: 14px; }
+.row { display: flex; gap: 10px; }
+.row .btn { flex: 1; }
+
+/* Dashboard */
+.wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px 16px; }
+.topbar .bizname { display: block; color: var(--muted); font-size: 14px; }
+.actions { margin-bottom: 12px; }
+.createrow { display: flex; gap: 8px; align-items: stretch; }
+.createrow input { margin: 0; }
+.createrow .btn { margin: 0; width: auto; white-space: nowrap; }
+.section { font-size: 13px; letter-spacing: 1px; color: var(--muted); margin: 22px 0 8px; }
+
+.queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.qrow {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+}
+.qnum { font-weight: 700; font-size: 18px; min-width: 60px; }
+.badge { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #f3f4f6; color: var(--muted); }
+.badge.waiting { background: #fef3c7; color: var(--warn); }
+.badge.ready { background: #dbeafe; color: var(--ready); }
+.badge.created { background: #f3f4f6; color: var(--muted); }
+.rowactions { margin-left: auto; display: flex; gap: 8px; }
+
+.status.ready { border-color: var(--ready); }
+
+@media print {
+  body { background: #fff; }
+  .row { display: none; }
+  .card { border: none; box-shadow: none; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #f3f4f6; --muted: #9ca3af; --line: #2a2d34; --bg: #0f1115; --accent: #f3f4f6; }
+  body { color: var(--ink); }
+  .card, .qrow { background: #171a1f; }
+  input { background: #0f1115; color: var(--ink); }
+  .btn, button { color: #111; }
+  .btn.ghost { background: #171a1f; color: var(--ink); }
+  .badge { background: #22262d; }
+}
