@@ -105,7 +105,10 @@ export default function Dashboard() {
       <ul className="queue">
         {rows.map((row) => (
           <li key={row.id} className="qrow">
-            <span className="qnum">#{row.queue_number}</span>
+            <span className="qnum">
+              #{row.queue_number}
+              {row.customer_name && <span className="qname"> · {row.customer_name}</span>}
+            </span>
             <span className={'badge ' + row.status}>
               {row.status === 'created' ? 'WAITING FOR CUSTOMER' : row.status.toUpperCase()}
             </span>

@@ -23,6 +23,7 @@ create table if not exists queue_sessions (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references businesses(id) on delete cascade,
   queue_number text not null,
+  customer_name text, -- optional name/nickname the customer types when joining
   status text not null default 'created', -- created, waiting, ready, completed, cancelled, expired
   created_at timestamptz not null default now(),
   joined_at timestamptz,

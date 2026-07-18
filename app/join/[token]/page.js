@@ -12,6 +12,7 @@ function urlBase64ToUint8Array(base64) {
 export default function Join() {
   const { token } = useParams();
   const [num, setNum] = useState('');
+  const [name, setName] = useState('');
   const [state, setState] = useState('enter'); // enter | waiting | ready | done | expired
   const [info, setInfo] = useState(null); // { customerSessionId, number }
   const [err, setErr] = useState('');
@@ -27,7 +28,7 @@ export default function Join() {
     const res = await fetch('/api/join', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token, queueNumber: n }),
+      body: JSON.stringify({ token, queueNumber: n, name: name.trim() }),
     });
     setBusy(false);
     if (res.status === 404) { setErr("We couldn't find that business. Please rescan the QR code."); return; }
@@ -88,6 +89,7 @@ export default function Join() {
           <h1 className="brand">QUEPER</h1>
           <p className="big">Enter your order or queue number</p>
           <input className="bignum" value={num} onChange={(e) => setNum(e.target.value)} inputMode="numeric" placeholder="102" />
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Name or nickname (optional)" style={{ marginTop: 10 }} />
           {err && <p className="error">{err}</p>}
           <button disabled={busy}>{busy ? '…' : 'JOIN QUEUE'}</button>
           <p className="muted" style={{ marginTop: 16 }}>No account required.<br />No personal information required.</p>
