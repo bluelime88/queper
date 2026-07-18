@@ -20,7 +20,10 @@ key; staff flows use the browser client under RLS.
 1. Create a project at [supabase.com](https://supabase.com).
 2. SQL Editor → paste and run [`supabase/schema.sql`](./supabase/schema.sql).
 3. **Authentication → Providers → Email → turn OFF "Confirm email"** (lets staff sign up and use the dashboard instantly for the MVP). Leave on if you want email confirmation.
-4. Project Settings → API: copy the **Project URL**, **anon key**, and **service_role key**.
+4. **Authentication → URL Configuration**: set **Site URL** to your deployed URL (e.g. `https://queper.vercel.app`) and add these to **Redirect URLs**: `https://queper.vercel.app/**` and `http://localhost:3000/**`. Required for the password-reset email link to return to `/reset`.
+5. Project Settings → API: copy the **Project URL**, **anon key**, and **service_role key**.
+
+> Password reset uses Supabase's built-in email, which is rate-limited (a few per hour) and meant for testing. Configure custom SMTP (Auth → Emails) before real use.
 
 ### 2. VAPID keys (web push)
 ```bash

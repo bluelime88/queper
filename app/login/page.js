@@ -33,6 +33,9 @@ export default function Login() {
         {err && <p className="error">{err}</p>}
         <button disabled={busy}>{busy ? '…' : 'LOGIN'}</button>
         <p className="muted" style={{ marginTop: 16 }}>
+          <Link href="/forgot">Forgot password?</Link>
+        </p>
+        <p className="muted" style={{ marginTop: 4 }}>
           No account? <Link href="/signup">Create one</Link>
         </p>
       </form>
