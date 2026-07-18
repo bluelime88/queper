@@ -31,7 +31,12 @@ export async function POST(req) {
     const { data, error } = await supabaseAdmin.from('queue_sessions')
       .insert({ business_id: biz.id, queue_number: num, customer_name: displayName, status: 'waiting', joined_at: now.toISOString(), expires_at: expires })
       .select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (String(error.message).includes('FREE_LIMIT_REACHED')) {
+        return NextResponse.json({ error: 'free_limit_reached' }, { status: 403 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     session = data;
   } else if (session.status === 'created' && !session.joined_at) {
     // Staff pre-created this entry — attach the customer.

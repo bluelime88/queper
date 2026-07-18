@@ -8,6 +8,10 @@ create table if not exists businesses (
   queue_label text not null default 'Queue Number',
   join_token uuid not null default gen_random_uuid(),
   status text not null default 'active',
+  plan text not null default 'free',                    -- free | monthly | annual
+  subscription_status text not null default 'inactive', -- inactive | active | trialing | past_due | canceled
+  stripe_customer_id text,
+  stripe_subscription_id text,
   created_at timestamptz not null default now()
 );
 create unique index if not exists businesses_join_token_idx on businesses(join_token);
@@ -73,3 +77,30 @@ create policy "staff delete queue" on queue_sessions for delete
 
 -- Realtime: let the staff dashboard receive live queue changes
 alter publication supabase_realtime add table queue_sessions;
+
+-- Free plan cap: 10 new queue entries per UTC day (unlimited when subscribed).
+-- See supabase/subscription.sql for the standalone/migration version.
+create or replace function enforce_daily_queue_limit()
+returns trigger language plpgsql as $$
+declare
+  unlimited boolean;
+  cnt int;
+begin
+  select (subscription_status in ('active', 'trialing'))
+    into unlimited from businesses where id = new.business_id;
+  if coalesce(unlimited, false) then
+    return new;
+  end if;
+  select count(*) into cnt from queue_sessions
+    where business_id = new.business_id
+      and created_at >= date_trunc('day', now());
+  if cnt >= 10 then
+    raise exception 'FREE_LIMIT_REACHED';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_daily_queue_limit on queue_sessions;
+create trigger trg_daily_queue_limit
+  before insert on queue_sessions
+  for each row execute function enforce_daily_queue_limit();

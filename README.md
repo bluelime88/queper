@@ -40,6 +40,20 @@ npm run dev      # http://localhost:3000
 ```
 Push notifications work on `localhost` and any HTTPS origin.
 
+## Billing (Stripe)
+
+Free plan = **10 orders/queue per day** (enforced by a DB trigger, so it can't be
+bypassed from the client). **Monthly $5** and **Annual $50** remove the limit.
+
+1. Create a [Stripe](https://stripe.com) account (test mode is fine).
+2. **Products** → create one product with two recurring prices: **$5 / month** and **$50 / year**. Copy both **price IDs** (`price_…`).
+3. **Developers → API keys** → copy the **Secret key** (`sk_…`).
+4. **Developers → Webhooks** → add endpoint `https://<your-domain>/api/stripe/webhook`, subscribe to `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. Copy the **Signing secret** (`whsec_…`).
+5. Put all four (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`) in `.env.local` and in Vercel env vars.
+6. Run [`supabase/subscription.sql`](./supabase/subscription.sql) in the Supabase SQL editor (adds subscription columns + the daily-limit trigger).
+
+Local webhook testing: `stripe listen --forward-to localhost:3000/api/stripe/webhook` (its printed `whsec_…` is your local `STRIPE_WEBHOOK_SECRET`).
+
 ## Deploy to Vercel
 1. Push this folder to a Git repo, import it in Vercel.
 2. Add the same env vars (from `.env.local`) in **Project → Settings → Environment Variables**.

@@ -33,6 +33,7 @@ export default function Join() {
     setBusy(false);
     if (res.status === 404) { setErr("We couldn't find that business. Please rescan the QR code."); return; }
     if (res.status === 409) { setErr('This number is already connected to a customer. Please ask staff to reset it.'); return; }
+    if (res.status === 403) { setErr('This business has reached its limit for today. Please try again tomorrow or ask staff.'); return; }
     if (!res.ok) { setErr('Something went wrong. Please try again.'); return; }
     const j = await res.json();
     setInfo(j);

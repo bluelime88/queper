@@ -20,6 +20,9 @@ export default function Dashboard() {
   const [newNum, setNewNum] = useState('');
   const [ready, setReady] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [unlimited, setUnlimited] = useState(false);
+  const [todayCount, setTodayCount] = useState(0);
+  const [limitMsg, setLimitMsg] = useState('');
   const [bizName, setBizName] = useState('');
   const [bizType, setBizType] = useState('restaurant');
   const [obErr, setObErr] = useState('');
@@ -34,6 +37,15 @@ export default function Dashboard() {
       .in('status', ACTIVE)
       .order('created_at', { ascending: true });
     setRows(data || []);
+    // today's usage against the free 10/day cap (UTC day, matches the DB trigger)
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const { count } = await supabase
+      .from('queue_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('business_id', businessId)
+      .gte('created_at', start.toISOString());
+    setTodayCount(count || 0);
   }, []);
 
   const init = useCallback(async () => {
@@ -45,6 +57,7 @@ export default function Dashboard() {
     const { data: biz } = await supabase
       .from('businesses').select('*').eq('id', profile.business_id).single();
     setBusiness(biz);
+    setUnlimited(['active', 'trialing'].includes(biz.subscription_status));
     setNeedsOnboarding(false);
     setReady(true);
     load(biz.id);
@@ -59,7 +72,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     init();
-    return () => { if (channelRef.current) supabase.removeChannel(channelRef.current); };
+    // Returning from Stripe Checkout — the webhook may lag a few seconds, so re-init once.
+    let t;
+    if (typeof window !== 'undefined' && window.location.search.includes('sub=success')) {
+      t = setTimeout(init, 3500);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+    };
   }, [init]);
 
   // Logged-in user without a business finishes setup here (not /signup).
@@ -88,8 +109,15 @@ export default function Dashboard() {
     e.preventDefault();
     const n = newNum.trim();
     if (!n) return;
-    await supabase.from('queue_sessions').insert({ business_id: business.id, queue_number: n, status: 'created' });
+    const { error } = await supabase.from('queue_sessions').insert({ business_id: business.id, queue_number: n, status: 'created' });
+    if (error) {
+      setLimitMsg(String(error.message).includes('FREE_LIMIT_REACHED')
+        ? "You've reached the free plan's 10 orders/day limit."
+        : error.message);
+      return;
+    }
     setNewNum('');
+    setLimitMsg('');
     load(business.id);
   }
 
@@ -149,6 +177,13 @@ export default function Dashboard() {
         <button className="link" onClick={logout}>Logout</button>
       </header>
 
+      <div className="planbar">
+        {unlimited
+          ? <span><b>{business.plan === 'annual' ? 'Annual' : 'Monthly'} plan</b> · Unlimited</span>
+          : <span><b>Free plan</b> · {todayCount}/10 orders today</span>}
+        <Link className="link" href="/dashboard/billing">{unlimited ? 'Manage billing' : 'Upgrade'}</Link>
+      </div>
+
       <div className="actions">
         <Link className="btn" href="/dashboard/qr">DISPLAY QR CODE</Link>
       </div>
@@ -157,6 +192,9 @@ export default function Dashboard() {
         <input placeholder={`New ${business.queue_label}`} value={newNum} onChange={(e) => setNewNum(e.target.value)} />
         <button className="btn">CREATE</button>
       </form>
+      {limitMsg && (
+        <p className="error">{limitMsg} <Link href="/dashboard/billing">Upgrade →</Link></p>
+      )}
 
       <h2 className="section">ACTIVE QUEUE</h2>
       {rows.length === 0 && <p className="muted">No active entries yet.</p>}

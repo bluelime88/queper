@@ -94,6 +94,11 @@ button:disabled { opacity: .6; cursor: default; }
 .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
 .topbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px 16px; }
 .topbar .bizname { display: block; color: var(--muted); font-size: 14px; }
+.planbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 12px; font-size: 14px;
+}
 .actions { margin-bottom: 12px; }
 .createrow { display: flex; gap: 8px; align-items: stretch; }
 .createrow input { margin: 0; }
@@ -124,7 +129,7 @@ button:disabled { opacity: .6; cursor: default; }
 @media (prefers-color-scheme: dark) {
   :root { --ink: #f3f4f6; --muted: #9ca3af; --line: #2a2d34; --bg: #0f1115; --accent: #f3f4f6; }
   body { color: var(--ink); }
-  .card, .qrow { background: #171a1f; }
+  .card, .qrow, .planbar { background: #171a1f; }
   input { background: #0f1115; color: var(--ink); }
   .btn, button { color: #111; }
   .btn.ghost { background: #171a1f; color: var(--ink); }
