@@ -8,13 +8,24 @@ create table if not exists businesses (
   queue_label text not null default 'Queue Number',
   join_token uuid not null default gen_random_uuid(),
   status text not null default 'active',
-  plan text not null default 'free',                    -- free | monthly | annual
-  subscription_status text not null default 'inactive', -- inactive | active | trialing | past_due | canceled
-  stripe_customer_id text,
-  stripe_subscription_id text,
+  plan text not null default 'free',            -- free | monthly | annual (last purchased)
+  subscription_expires_at timestamptz,          -- unlimited while > now(); null/past = free tier
+  created_at timestamptz not null default now()
+);
+
+-- Maya (PayMaya) checkout payments — reconciles webhooks back to a business.
+create table if not exists maya_payments (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  plan text not null,                           -- monthly | annual
+  reference text not null unique,               -- requestReferenceNumber sent to Maya
+  checkout_id text,
+  amount int not null,
+  status text not null default 'pending',       -- pending | paid | failed
   created_at timestamptz not null default now()
 );
 create unique index if not exists businesses_join_token_idx on businesses(join_token);
+create index if not exists maya_payments_reference_idx on maya_payments(reference);
 
 create table if not exists profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -51,6 +62,7 @@ alter table businesses enable row level security;
 alter table profiles enable row level security;
 alter table queue_sessions enable row level security;
 alter table customer_sessions enable row level security;
+alter table maya_payments enable row level security; -- no policies: server-role only
 
 -- profiles: a user reads only their own row
 create policy "own profile" on profiles for select using (auth.uid() = user_id);
@@ -86,7 +98,7 @@ declare
   unlimited boolean;
   cnt int;
 begin
-  select (subscription_status in ('active', 'trialing'))
+  select (subscription_expires_at is not null and subscription_expires_at > now())
     into unlimited from businesses where id = new.business_id;
   if coalesce(unlimited, false) then
     return new;

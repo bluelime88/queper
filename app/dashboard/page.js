@@ -57,7 +57,7 @@ export default function Dashboard() {
     const { data: biz } = await supabase
       .from('businesses').select('*').eq('id', profile.business_id).single();
     setBusiness(biz);
-    setUnlimited(['active', 'trialing'].includes(biz.subscription_status));
+    setUnlimited(!!biz.subscription_expires_at && new Date(biz.subscription_expires_at) > new Date());
     setNeedsOnboarding(false);
     setReady(true);
     load(biz.id);

@@ -25,32 +25,29 @@ export default function Billing() {
     })();
   }, [router]);
 
-  async function post(path, body) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify(body || {}),
-    });
-    const j = await res.json();
-    if (!res.ok || !j.url) throw new Error(j.error || 'Something went wrong.');
-    window.location.href = j.url;
-  }
-
   async function subscribe(plan) {
     setErr(''); setBusy(plan);
-    try { await post('/api/stripe/checkout', { plan }); }
-    catch (e) { setErr(e.message); setBusy(''); }
-  }
-  async function manage() {
-    setErr(''); setBusy('portal');
-    try { await post('/api/stripe/portal'); }
-    catch (e) { setErr(e.message); setBusy(''); }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/maya/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ plan }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.url) throw new Error(j.error || 'Could not start checkout.');
+      window.location.href = j.url; // Maya hosted checkout
+    } catch (e) {
+      setErr(e.message);
+      setBusy('');
+    }
   }
 
   if (!ready) return <main className="center"><p className="muted">Loading…</p></main>;
 
-  const unlimited = ['active', 'trialing'].includes(business.subscription_status);
+  const expires = business.subscription_expires_at ? new Date(business.subscription_expires_at) : null;
+  const unlimited = expires && expires > new Date();
+  const fmt = (d) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
     <main className="center">
@@ -60,29 +57,21 @@ export default function Billing() {
 
         <div className="planbar" style={{ justifyContent: 'center', marginBottom: 18 }}>
           {unlimited
-            ? <span><b>{business.plan === 'annual' ? 'Annual' : 'Monthly'} plan</b> · Unlimited orders/day</span>
+            ? <span><b>{business.plan === 'annual' ? 'Annual' : 'Monthly'} plan</b> · Unlimited until {fmt(expires)}</span>
             : <span><b>Free plan</b> · 10 orders/day</span>}
         </div>
 
         {err && <p className="error">{err}</p>}
 
-        {!unlimited && (
-          <>
-            <button onClick={() => subscribe('monthly')} disabled={!!busy}>
-              {busy === 'monthly' ? '…' : 'MONTHLY — $5 / month'}
-            </button>
-            <button className="btn ghost" onClick={() => subscribe('annual')} disabled={!!busy} style={{ marginTop: 10 }}>
-              {busy === 'annual' ? '…' : 'ANNUAL — $50 / year (save $10)'}
-            </button>
-            <p className="muted" style={{ marginTop: 14 }}>Both paid plans remove the 10 orders/day limit.</p>
-          </>
-        )}
-
-        {business.stripe_customer_id && (
-          <button className="btn ghost" onClick={manage} disabled={!!busy} style={{ marginTop: 10 }}>
-            {busy === 'portal' ? '…' : 'MANAGE BILLING'}
-          </button>
-        )}
+        <button onClick={() => subscribe('monthly')} disabled={!!busy}>
+          {busy === 'monthly' ? '…' : `${unlimited ? 'EXTEND' : 'SUBSCRIBE'} MONTHLY — ₱250 / 30 days`}
+        </button>
+        <button className="btn ghost" onClick={() => subscribe('annual')} disabled={!!busy} style={{ marginTop: 10 }}>
+          {busy === 'annual' ? '…' : `${unlimited ? 'EXTEND' : 'SUBSCRIBE'} ANNUAL — ₱2,500 / 365 days`}
+        </button>
+        <p className="muted" style={{ marginTop: 14 }}>
+          Both paid plans remove the 10 orders/day limit. Paid via Maya. Access is prepaid — it lapses to the free plan when it expires unless you renew.
+        </p>
 
         <p className="muted" style={{ marginTop: 18 }}>
           <Link href="/dashboard">← Back to dashboard</Link>

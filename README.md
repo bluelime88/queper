@@ -40,19 +40,22 @@ npm run dev      # http://localhost:3000
 ```
 Push notifications work on `localhost` and any HTTPS origin.
 
-## Billing (Stripe)
+## Billing (Maya Business / PayMaya)
 
 Free plan = **10 orders/queue per day** (enforced by a DB trigger, so it can't be
-bypassed from the client). **Monthly $5** and **Annual $50** remove the limit.
+bypassed from the client). Paid plans remove the limit and are **prepaid** — a
+one-time Maya Checkout buys a fixed window; access lapses back to free when it
+expires unless renewed:
 
-1. Create a [Stripe](https://stripe.com) account (test mode is fine).
-2. **Products** → create one product with two recurring prices: **$5 / month** and **$50 / year**. Copy both **price IDs** (`price_…`).
-3. **Developers → API keys** → copy the **Secret key** (`sk_…`).
-4. **Developers → Webhooks** → add endpoint `https://<your-domain>/api/stripe/webhook`, subscribe to `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. Copy the **Signing secret** (`whsec_…`).
-5. Put all four (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`) in `.env.local` and in Vercel env vars.
-6. Run [`supabase/subscription.sql`](./supabase/subscription.sql) in the Supabase SQL editor (adds subscription columns + the daily-limit trigger).
+- **Monthly — ₱250 / 30 days**
+- **Annual — ₱2,500 / 365 days**
 
-Local webhook testing: `stripe listen --forward-to localhost:3000/api/stripe/webhook` (its printed `whsec_…` is your local `STRIPE_WEBHOOK_SECRET`).
+1. In **Maya Business Manager → Developer Sandbox App Management**, generate **Sandbox API keys** (a public `pk-…` and secret `sk-…`).
+2. Put them in `.env.local` and in Vercel env vars: `MAYA_ENV=sandbox`, `MAYA_PUBLIC_KEY`, `MAYA_SECRET_KEY`. (Set `MAYA_ENV=production` with live keys to go live.)
+3. **Register a webhook** for `PAYMENT_SUCCESS` (and `PAYMENT_FAILED`) pointing to `https://<your-domain>/api/maya/webhook` — via Maya Manager (Settings → Webhooks) or the Create Webhook API (`POST /payments/v1/webhooks`, Basic auth with the secret key).
+4. Run [`supabase/subscription.sql`](./supabase/subscription.sql) in the Supabase SQL editor (adds `plan` + `subscription_expires_at`, the `maya_payments` table, and the daily-limit trigger).
+
+Maya webhooks are unsigned — the webhook handler re-fetches each checkout's status from Maya (secret key) before granting access, and is idempotent. Prices are in `lib/maya.js` (`PLANS`).
 
 ## Deploy to Vercel
 1. Push this folder to a Git repo, import it in Vercel.
