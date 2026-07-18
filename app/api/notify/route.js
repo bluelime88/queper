@@ -24,7 +24,7 @@ export async function POST(req) {
 
   const { data: biz } = await supabaseAdmin
     .from('businesses').select('business_type, queue_label').eq('id', qs.business_id).single();
-  const msg = readyMessage(biz.business_type, biz.queue_label, qs.queue_number);
+  const msg = readyMessage(biz.business_type, biz.queue_label, qs.queue_number, qs.customer_name);
 
   const { data: sessions } = await supabaseAdmin
     .from('customer_sessions').select('id, push_subscription').eq('queue_session_id', queueSessionId);
