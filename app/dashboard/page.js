@@ -1,10 +1,17 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseBrowser';
 
 const ACTIVE = ['created', 'waiting', 'ready'];
+const TYPES = [
+  { value: 'restaurant', label: 'Restaurant', queue: 'Order Number' },
+  { value: 'clinic', label: 'Clinic', queue: 'Queue Number' },
+  { value: 'pharmacy', label: 'Pharmacy', queue: 'Claim Number' },
+  { value: 'service_center', label: 'Service Center', queue: 'Ticket Number' },
+  { value: 'generic', label: 'Other', queue: 'Queue Number' },
+];
 
 export default function Dashboard() {
   const router = useRouter();
@@ -12,6 +19,12 @@ export default function Dashboard() {
   const [rows, setRows] = useState([]);
   const [newNum, setNewNum] = useState('');
   const [ready, setReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [bizName, setBizName] = useState('');
+  const [bizType, setBizType] = useState('restaurant');
+  const [obErr, setObErr] = useState('');
+  const [obBusy, setObBusy] = useState(false);
+  const channelRef = useRef(null);
 
   const load = useCallback(async (businessId) => {
     const { data } = await supabase
@@ -23,29 +36,53 @@ export default function Dashboard() {
     setRows(data || []);
   }, []);
 
-  useEffect(() => {
-    let channel;
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace('/login'); return; }
-      const { data: profile } = await supabase
-        .from('profiles').select('business_id').eq('user_id', session.user.id).maybeSingle();
-      if (!profile) { router.replace('/signup'); return; }
-      const { data: biz } = await supabase
-        .from('businesses').select('*').eq('id', profile.business_id).single();
-      setBusiness(biz);
-      setReady(true);
-      load(biz.id);
-      // Realtime: dashboard refreshes on any queue change for this business.
-      channel = supabase
-        .channel('queue-' + biz.id)
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'queue_sessions', filter: `business_id=eq.${biz.id}` },
-          () => load(biz.id))
-        .subscribe();
-    })();
-    return () => { if (channel) supabase.removeChannel(channel); };
+  const init = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { router.replace('/login'); return; }
+    const { data: profile } = await supabase
+      .from('profiles').select('business_id').eq('user_id', session.user.id).maybeSingle();
+    if (!profile) { setNeedsOnboarding(true); setReady(true); return; }
+    const { data: biz } = await supabase
+      .from('businesses').select('*').eq('id', profile.business_id).single();
+    setBusiness(biz);
+    setNeedsOnboarding(false);
+    setReady(true);
+    load(biz.id);
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    channelRef.current = supabase
+      .channel('queue-' + biz.id)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'queue_sessions', filter: `business_id=eq.${biz.id}` },
+        () => load(biz.id))
+      .subscribe();
   }, [router, load]);
+
+  useEffect(() => {
+    init();
+    return () => { if (channelRef.current) supabase.removeChannel(channelRef.current); };
+  }, [init]);
+
+  // Logged-in user without a business finishes setup here (not /signup).
+  async function submitOnboarding(e) {
+    e.preventDefault();
+    setObErr('');
+    setObBusy(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const queueLabel = TYPES.find((t) => t.value === bizType)?.queue || 'Queue Number';
+    const res = await fetch('/api/onboard', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ businessName: bizName, businessType: bizType, queueLabel }),
+    });
+    setObBusy(false);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setObErr(j.error || 'Could not create business.');
+      return;
+    }
+    setReady(false);
+    init();
+  }
 
   async function createQueue(e) {
     e.preventDefault();
@@ -80,6 +117,27 @@ export default function Dashboard() {
   }
 
   if (!ready) return <main className="center"><p className="muted">Loading…</p></main>;
+
+  if (needsOnboarding) {
+    return (
+      <main className="center">
+        <form className="card" onSubmit={submitOnboarding}>
+          <h1 className="brand">QUEPER</h1>
+          <p className="tagline">One more step — set up your business.</p>
+          <label>Business name</label>
+          <input value={bizName} onChange={(e) => setBizName(e.target.value)} required />
+          <label>Business type</label>
+          <select value={bizType} onChange={(e) => setBizType(e.target.value)}
+            style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', fontSize: 16 }}>
+            {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          {obErr && <p className="error">{obErr}</p>}
+          <button disabled={obBusy}>{obBusy ? '…' : 'CREATE BUSINESS'}</button>
+          <button type="button" className="link" onClick={logout} style={{ marginTop: 14 }}>Log out</button>
+        </form>
+      </main>
+    );
+  }
 
   return (
     <main className="wrap">
